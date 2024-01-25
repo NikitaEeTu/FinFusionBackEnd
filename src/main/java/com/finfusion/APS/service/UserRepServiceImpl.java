@@ -4,20 +4,20 @@ import com.finfusion.APS.dto.UserDto;
 import com.finfusion.APS.entity.UserEntity;
 import com.finfusion.APS.mapper.UserMapper;
 import com.finfusion.APS.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.finfusion.APS.service.exception.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class UserRepServiceImpl implements UserRepService {
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private UserMapper userMapper;
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public UserDto getUser(UUID id) throws Exception {
-        UserEntity userEntity = userRepository.findById(id).orElseThrow(() -> new Exception("Entity not found"));
+    public UserDto getUser(UUID id) {
+        UserEntity userEntity = userRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Entity not found"));
         return userMapper.convertEntityToDto(userEntity);
     }
 

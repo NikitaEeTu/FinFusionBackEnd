@@ -8,53 +8,87 @@ import com.finfusion.APS.entity.UserEntity;
 import com.finfusion.APS.mapper.AssetMapper;
 import com.finfusion.APS.repository.AssetRepository;
 import com.finfusion.APS.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.finfusion.APS.service.exception.AssetUpdateException;
+import com.finfusion.APS.service.exception.EntityNotFoundException;
+import com.finfusion.APS.service.exception.EntitySaveException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class AssetRepServiceImpl implements AssetRepService {
-    @Autowired
-    private AssetRepository assetRepository;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private AssetMapper assetMapper;
+    private final AssetRepository assetRepository;
+    private final UserRepository userRepository;
+    private final AssetMapper assetMapper;
 
-    public AssetDto getAsset(UUID id) throws Exception {
-        AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> new Exception("Entity not found"));
+    private static BigDecimal updateAmount(AssetUpdateDto assetUpdateDto, AssetEntity assetEntity) {
+        final BigDecimal updateAmount = assetUpdateDto.getAmount();
+        BigDecimal amount = assetEntity.getAmount();
+        if (assetUpdateDto.getAction() == Action.ADD) {
+            amount = amount.add(updateAmount);
+        } else if (assetUpdateDto.getAction() == Action.SUBTRACT) {
+            if (updateAmount.compareTo(amount) > 0) {
+                throw new AssetUpdateException("The updated amount is greater than asset amount");
+            }
+            amount = amount.subtract(updateAmount);
+        }
+        return amount;
+    }
+
+    public AssetDto getAsset(UUID id) {
+        AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> {
+            logAssetNotFoundMsg(id);
+            return new EntityNotFoundException("Entity Asset not found");
+        });
         return assetMapper.convertEntityToDto(assetEntity);
     }
 
     public AssetDto saveAsset(AssetDto assetDto) {
         UserEntity user = userRepository.findByEmail(assetDto.getUserEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> {
+                    log.error("User with email: {} not found", assetDto.getUserEmail());
+                    return new EntityNotFoundException("Entity User not found");
+                });
         AssetEntity assetEntity = assetMapper.convertDtoToEntity(assetDto);
         assetEntity.setUser(user);
-        return assetMapper.convertEntityToDto(assetRepository.save(assetEntity));
+        try {
+            AssetEntity savedAsset = assetRepository.save(assetEntity);
+            return assetMapper.convertEntityToDto(savedAsset);
+        } catch (DataIntegrityViolationException ex) {
+            log.error("Error saving asset: {}", ex.getMessage());
+            throw new EntitySaveException("Failed to save asset");
+        }
     }
 
     @Override
-    public AssetDto deleteAsset(UUID id) throws Exception {
-        AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> new Exception("Entity not found"));
+    public AssetDto deleteAsset(UUID id) {
+        AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> {
+            logAssetNotFoundMsg(id);
+            return new EntityNotFoundException("Entity Asset not found");
+        });
         assetRepository.delete(assetEntity);
         return assetMapper.convertEntityToDto(assetEntity);
     }
 
     @Override
-    public AssetDto updateAsset(UUID id, AssetUpdateDto assetUpdateDto) throws Exception {
-        final AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> new Exception("Entity not found"));
-        final BigDecimal updateAmount = assetUpdateDto.getAmount();
-        BigDecimal amount = assetEntity.getAmount();
-        if (assetUpdateDto.getAction() == Action.ADD) {
-            amount = amount.add(updateAmount);
-        } else if (assetUpdateDto.getAction() == Action.SUBTRACT && updateAmount.compareTo(amount) < 0) {
-            amount = amount.subtract(updateAmount);
-        }
+    public AssetDto updateAsset(UUID id, AssetUpdateDto assetUpdateDto) {
+        final AssetEntity assetEntity = assetRepository.findById(id).orElseThrow(() -> {
+            logAssetNotFoundMsg(id);
+            return new EntityNotFoundException("Entity Asset not found");
+        });
+        BigDecimal amount = updateAmount(assetUpdateDto, assetEntity);
         assetEntity.setAmount(amount);
         AssetEntity updatedAsset = assetRepository.save(assetEntity);
         return assetMapper.convertEntityToDto(updatedAsset);
+    }
+
+    private void logAssetNotFoundMsg(UUID id) {
+        log.warn("Asset with id: {} not found", id);
     }
 }

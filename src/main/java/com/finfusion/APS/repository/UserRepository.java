@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends CrudRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmail(String email);
+
+    Boolean existsByEmail(String email);
 }
