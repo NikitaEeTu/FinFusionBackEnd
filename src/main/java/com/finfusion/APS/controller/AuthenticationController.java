@@ -3,6 +3,7 @@ package com.finfusion.APS.controller;
 import com.finfusion.APS.dto.AuthenticationRequest;
 import com.finfusion.APS.dto.AuthenticationResponse;
 import com.finfusion.APS.dto.RegisterRequest;
+import com.finfusion.APS.dto.TokenValidationRequest;
 import com.finfusion.APS.service.security.auth.AuthenticationServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,5 +30,12 @@ public class AuthenticationController {
             @RequestBody AuthenticationRequest authenticationRequest
     ) {
         return ResponseEntity.ok(authenticationServiceImpl.authenticate(authenticationRequest));
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<Boolean> validate(
+            @RequestBody TokenValidationRequest tokenValidationRequest
+    ) {
+        return ResponseEntity.ok(authenticationServiceImpl.validateTokenForUser(tokenValidationRequest));
     }
 }

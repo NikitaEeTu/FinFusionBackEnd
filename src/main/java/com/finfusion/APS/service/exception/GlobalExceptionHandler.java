@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
     private HttpStatus determineHttpStatus(Exception ex) {
         if (ex instanceof EntityNotFoundException) {
             return HttpStatus.NOT_FOUND;
-        } else if (ex instanceof ExpiredJwtException || ex instanceof UserAuthenticationException) {
+        } else if (ex instanceof ExpiredJwtException || ex instanceof UserAuthenticationException || ex instanceof TokenValidationException) {
             return HttpStatus.UNAUTHORIZED;
         } else if (ex instanceof EmailAlreadyInUseException) {
             return HttpStatus.BAD_REQUEST;

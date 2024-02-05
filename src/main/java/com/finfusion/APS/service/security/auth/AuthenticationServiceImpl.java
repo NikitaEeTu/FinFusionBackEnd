@@ -3,10 +3,12 @@ package com.finfusion.APS.service.security.auth;
 import com.finfusion.APS.dto.AuthenticationRequest;
 import com.finfusion.APS.dto.AuthenticationResponse;
 import com.finfusion.APS.dto.RegisterRequest;
+import com.finfusion.APS.dto.TokenValidationRequest;
 import com.finfusion.APS.entity.UserEntity;
 import com.finfusion.APS.repository.UserRepository;
 import com.finfusion.APS.service.exception.EmailAlreadyInUseException;
 import com.finfusion.APS.service.exception.EntityNotFoundException;
+import com.finfusion.APS.service.exception.TokenValidationException;
 import com.finfusion.APS.service.exception.UserAuthenticationException;
 import com.finfusion.APS.service.security.Role;
 import com.finfusion.APS.service.security.jwt.JwtService;
@@ -76,6 +78,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElseThrow(() -> new EntityNotFoundException("Entity User not found"));
         loginCounter.increment();
         return generateAuthenticationResponse(user);
+    }
+
+    public boolean validateTokenForUser(TokenValidationRequest tokenValidationRequest) {
+        if (tokenValidationRequest == null || tokenValidationRequest.getEmail().isEmpty() || tokenValidationRequest.getToken().isEmpty()) {
+            log.info("TokenValidationRequest and its fields must not be null or empty string");
+            throw new TokenValidationException("Your authentication token isn't correct. Please login one more time.");
+        }
+        final String userEmail = tokenValidationRequest.getEmail();
+        UserEntity user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Entity User not found"));
+        return jwtService.isTokenValid(tokenValidationRequest.getToken(), user);
     }
 
     private AuthenticationResponse generateAuthenticationResponse(UserEntity userEntity) {
